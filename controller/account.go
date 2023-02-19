@@ -116,3 +116,160 @@ func AccountFindMany(c *gin.Context) {
 		"data":    result,
 	})
 }
+
+func AccountFindOne(c *gin.Context) {
+	result := Account{}
+
+	err := config.Pool.QuerySingle(
+		c,
+		`Select Account {
+			no,
+			id,
+			create_at,
+			update_at,
+			delete_at,
+			name,
+			currency,
+			balance,
+			status,
+		}
+		Filter .id = <uuid><str>$0
+		Limit 1`,
+		&result,
+		c.Param("id"),
+	)
+
+	if err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Server Error"})
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Ok!",
+			"data":    result,
+		})
+	}
+}
+
+func AccountUpdate(c *gin.Context) {
+	var payload Account
+
+	err := json.NewDecoder(c.Request.Body).Decode(&payload)
+
+	if err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Server Error",
+		})
+		return
+	}
+
+	result := Account{}
+
+	parsedUUID, parsedUUIDError := edgedb.ParseUUID(c.Param("id"))
+
+	if parsedUUIDError != nil {
+		log.Print(parsedUUIDError)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Server Error",
+		})
+		return
+	}
+
+	err = config.Pool.QuerySingle(
+		c,
+		`With updated := (
+			Update Account
+			filter .id = <uuid>$0
+			Set {
+				update_at := <datetime>$1,
+				name := <str>$2,
+				currency := <str>$3,
+				balance := <float64>$4,
+				status:= <bool> $5,
+			}
+		)
+		Select updated {
+			no,
+			id,
+			create_at,
+			update_at,
+			delete_at,
+			name,
+			currency,
+			balance,
+			status,
+		}`,
+		&result,
+		parsedUUID,
+		time.Now(),
+		payload.Name,
+		payload.Currency,
+		payload.Balance,
+		payload.Status,
+	)
+
+	if err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Server Error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Ok!",
+		"data":    result,
+	})
+}
+
+func AccountDelete(c *gin.Context) {
+	parsedUUID, parsedUUIDError := edgedb.ParseUUID(c.Param("id"))
+
+	if parsedUUIDError != nil {
+		log.Print(parsedUUIDError)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Server Error",
+		})
+		return
+	}
+
+	result := Account{}
+
+	err := config.Pool.QuerySingle(
+		c,
+		`With deleted := (
+			Update Account
+			filter .id = <uuid>$0
+			Set {
+				delete_at := <datetime>$1,
+			}
+		)
+		Select deleted {
+			no,
+			id,
+			create_at,
+			update_at,
+			delete_at,
+			name,
+			currency,
+			balance,
+			status,
+		}`,
+		&result,
+		parsedUUID,
+		time.Now(),
+	)
+
+	if err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Server Error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Ok!",
+		"data":    result,
+	})
+}
