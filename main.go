@@ -29,6 +29,9 @@ func main() {
 	{
 		account.POST("/", controller.AccountCreate)
 		account.GET("/", controller.AccountFindMany)
+		account.GET("/:id", controller.AccountFindOne)
+		account.PUT("/:id", controller.AccountUpdate)
+		account.DELETE("/:id", controller.AccountDelete)
 	}
 
 	r.Run()
